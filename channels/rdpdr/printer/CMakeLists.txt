@@ -32,6 +32,16 @@ if(WITH_CUPS)
 	add_definitions(-DWITH_CUPS)
 endif()
 
+if(WITH_ULTEO_PDF_PRINTER)
+	set(PRINTER_SRCS
+		${PRINTER_SRCS}
+		printer_ulteo_pdf.c
+		printer_ulteo_pdf.h
+	)
+	add_definitions(-DWITH_ULTEO_PDF_PRINTER)
+endif()
+
+
 include_directories(..)
 
 add_library(printer ${PRINTER_SRCS})
