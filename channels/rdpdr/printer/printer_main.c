@@ -2,7 +2,9 @@
  * FreeRDP: A Remote Desktop Protocol client.
  * Print Virtual Channel
  *
- * Copyright 2010-2011 Vic Lee
+ * Copyright 2010-2011 Vic Lee (original file)
+ * Copyright 2012 Ulteo SAS http://www.ulteo.com (Ulteo PDF Printer)
+ *    Author: Jocelyn DELALANDE <j.delalande@ulteo.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +35,11 @@
 #ifdef WITH_CUPS
 #include "printer_cups.h"
 #endif
+
+#ifdef WITH_ULTEO_PDF_PRINTER
+#include "printer_ulteo_pdf.h"
+#endif
+
 
 #include "printer_main.h"
 
@@ -302,6 +309,10 @@ int DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 
 #ifdef WITH_CUPS
 	driver = printer_cups_get_driver();
+#endif
+#ifdef WITH_ULTEO_PDF_PRINTER
+	DEBUG_SVC("ULteo driver registered");
+    driver = printer_ulteo_pdf_get_driver();
 #endif
 	if (driver == NULL)
 	{

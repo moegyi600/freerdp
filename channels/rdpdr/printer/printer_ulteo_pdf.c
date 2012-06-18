@@ -1,8 +1,12 @@
 /**
  * FreeRDP: A Remote Desktop Protocol client.
- * Print Virtual Channel - CUPS driver
+ * Print Virtual Channel - Ulteo Open Virtual Desktop PDF printer
  *
- * Copyright 2010-2011 Vic Lee
+ *
+ * Copyright 2012 Ulteo SAS http://www.ulteo.com
+ *    Author: Jocelyn DELALANDE <j.delalande@ulteo.com>
+ *
+ * Inspired by printer_cups.h - Copyright 2010-2011 Vic Lee
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +26,6 @@
 #include <string.h>
 #include <pthread.h>
 #include <time.h>
-#include <cups/cups.h>
 #include <freerdp/utils/memory.h>
 #include <freerdp/utils/svc_plugin.h>
 
@@ -30,35 +33,27 @@
 #include "rdpdr_types.h"
 #include "printer_main.h"
 
-#include "printer_cups.h"
+#include "printer_ulteo_pdf.h"
 
-typedef struct rdp_cups_printer_driver rdpCupsPrinterDriver;
-typedef struct rdp_cups_printer rdpCupsPrinter;
-typedef struct rdp_cups_print_job rdpCupsPrintJob;
+typedef struct rdp_ulteo_pdf_printer_driver rdpUlteoPdfPrinterDriver;
+typedef struct rdp_ulteo_pdf_printer rdpUlteoPdfPrinter;
+typedef struct rdp_ulteo_pdf_print_job rdpUlteoPdfPrintJob;
 
-struct rdp_cups_printer_driver
+struct rdp_ulteo_pdf_printer_driver
 {
 	rdpPrinterDriver driver;
 
 	int id_sequence;
 };
 
-struct rdp_cups_printer
+struct rdp_ulteo_pdf_printer
 {
 	rdpPrinter printer;
 
-	rdpCupsPrintJob* printjob;
+	rdpPrintJob* printjob;
 };
 
-struct rdp_cups_print_job
-{
-	rdpPrintJob printjob;
-
-	void* printjob_object;
-	int printjob_id;
-};
-
-static void printer_cups_get_printjob_name(char* buf, int size)
+static void printer_ulteo_pdf_get_printjob_name(char* buf, int size)
 {
 	time_t tt;
 	struct tm* t;
@@ -70,214 +65,121 @@ static void printer_cups_get_printjob_name(char* buf, int size)
 		t->tm_hour, t->tm_min, t->tm_sec);
 }
 
-static void printer_cups_write_printjob(rdpPrintJob* printjob, uint8* data, int size)
+
+/// Here we have in data the PDF data as received from the server.
+static void printer_ulteo_pdf_write_printjob(rdpPrintJob* printjob, uint8* data, int size)
 {
-	rdpCupsPrintJob* cups_printjob = (rdpCupsPrintJob*)printjob;
+	DEBUG_WARN("Write %i job data", size);
+}
 
-#ifndef _CUPS_API_1_4
 
-	{
-		FILE* fp;
+/// Simply called when the document has finished transmission
+static void printer_ulteo_pdf_close_printjob(rdpPrintJob* printjob)
+{
+	DEBUG_WARN("Close %i job", printjob->id);
+	((rdpUlteoPdfPrinter*)printjob->printer)->printjob = NULL;
+}
 
-		fp = fopen((const char*)cups_printjob->printjob_object, "a+b");
-		if (fp == NULL)
-		{
-			DEBUG_WARN("failed to open file %s", (char*)cups_printjob->printjob_object);
-			return;
-		}
-		if (fwrite(data, 1, size, fp) < size)
-		{
-			DEBUG_WARN("failed to write file %s", (char*)cups_printjob->printjob_object);
-		}
-		fclose(fp);
+static rdpPrintJob* printer_ulteo_pdf_create_printjob(rdpPrinter* printer, uint32 id)
+{
+	rdpUlteoPdfPrinter* ulteo_pdf_printer = (rdpUlteoPdfPrinter*)printer;
+	rdpPrintJob* printjob = xnew(rdpPrintJob);
+
+	DEBUG_WARN("Create %i job", printjob->id);
+
+	// Means that we cannot transmit two documents at the same time on the remote printer.
+	if (ulteo_pdf_printer->printjob != NULL) {
+		DEBUG_WARN("Refusing job %i as another is still transmissing", 
+				   id);
+		return NULL;
 	}
 
-#else
+	printjob->id = id;
+	printjob->printer = printer;
 
-	cupsWriteRequestData((http_t*)cups_printjob->printjob_object, (const char*)data, size);
+	printjob->Write = printer_ulteo_pdf_write_printjob;
+	printjob->Close = printer_ulteo_pdf_close_printjob;
 
-#endif
+	ulteo_pdf_printer->printjob = printjob;
+
+	//TODO: keep track of the jobs in a list.
+
+	return printjob;
 }
 
-static void printer_cups_close_printjob(rdpPrintJob* printjob)
+static rdpPrintJob* printer_ulteo_pdf_find_printjob(rdpPrinter* printer, uint32 id)
 {
-	rdpCupsPrintJob* cups_printjob = (rdpCupsPrintJob*)printjob;
+	rdpUlteoPdfPrinter* ulteo_pdf_printer = (rdpUlteoPdfPrinter*)printer;
 
-#ifndef _CUPS_API_1_4
-
-	{
-		char buf[100];
-
-		printer_cups_get_printjob_name(buf, sizeof(buf));
-		if (cupsPrintFile(printjob->printer->name, (const char *)cups_printjob->printjob_object, buf, 0, NULL) == 0)
-		{
-			DEBUG_WARN("cupsPrintFile: %s", cupsLastErrorString());
-		}
-		unlink(cups_printjob->printjob_object);
-		xfree(cups_printjob->printjob_object);
-	}
-
-#else
-
-	cupsFinishDocument((http_t*)cups_printjob->printjob_object, printjob->printer->name);
-	cups_printjob->printjob_id = 0;
-	httpClose((http_t*)cups_printjob->printjob_object);
-
-#endif
-
-	xfree(cups_printjob);
-
-	((rdpCupsPrinter*)printjob->printer)->printjob = NULL;
-}
-
-static rdpPrintJob* printer_cups_create_printjob(rdpPrinter* printer, uint32 id)
-{
-	rdpCupsPrinter* cups_printer = (rdpCupsPrinter*)printer;
-	rdpCupsPrintJob* cups_printjob;
-
-	if (cups_printer->printjob != NULL)
+	if ((ulteo_pdf_printer->printjob == NULL) ||  (ulteo_pdf_printer->printjob->id != id))
 		return NULL;
 
-	cups_printjob = xnew(rdpCupsPrintJob);
-
-	cups_printjob->printjob.id = id;
-	cups_printjob->printjob.printer = printer;
-
-	cups_printjob->printjob.Write = printer_cups_write_printjob;
-	cups_printjob->printjob.Close = printer_cups_close_printjob;
-
-#ifndef _CUPS_API_1_4
-
-	cups_printjob->printjob_object = xstrdup(tmpnam(NULL));
-
-#else
-	{
-		char buf[100];
-
-		cups_printjob->printjob_object = httpConnectEncrypt(cupsServer(), ippPort(), HTTP_ENCRYPT_IF_REQUESTED);
-		if (cups_printjob->printjob_object == NULL)
-		{
-			DEBUG_WARN("httpConnectEncrypt: %s", cupsLastErrorString());
-			xfree(cups_printjob);
-			return NULL;
-		}
-
-		printer_cups_get_printjob_name(buf, sizeof(buf));
-		cups_printjob->printjob_id = cupsCreateJob((http_t*)cups_printjob->printjob_object,
-			printer->name, buf, 0, NULL);
-
-		if (cups_printjob->printjob_id == 0)
-		{
-			DEBUG_WARN("cupsCreateJob: %s", cupsLastErrorString());
-			httpClose((http_t*)cups_printjob->printjob_object);
-			xfree(cups_printjob);
-			return NULL;
-		}
-		cupsStartDocument((http_t*)cups_printjob->printjob_object,
-			printer->name, cups_printjob->printjob_id, buf,
-			CUPS_FORMAT_AUTO, 1);
-	}
-
-#endif
-
-	cups_printer->printjob = cups_printjob;
-	
-	return (rdpPrintJob*)cups_printjob;
+	return (rdpPrintJob*)ulteo_pdf_printer->printjob;
 }
 
-static rdpPrintJob* printer_cups_find_printjob(rdpPrinter* printer, uint32 id)
+static void printer_ulteo_pdf_free_printer(rdpPrinter* printer)
 {
-	rdpCupsPrinter* cups_printer = (rdpCupsPrinter*)printer;
+	rdpUlteoPdfPrinter* ulteo_pdf_printer = (rdpUlteoPdfPrinter*)printer;
 
-	if (cups_printer->printjob == NULL)
-		return NULL;
-	if (cups_printer->printjob->printjob.id != id)
-		return NULL;
-
-	return (rdpPrintJob*)cups_printer->printjob;
-}
-
-static void printer_cups_free_printer(rdpPrinter* printer)
-{
-	rdpCupsPrinter* cups_printer = (rdpCupsPrinter*)printer;
-
-	if (cups_printer->printjob)
-		cups_printer->printjob->printjob.Close((rdpPrintJob*)cups_printer->printjob);
+	if (ulteo_pdf_printer->printjob)
+		ulteo_pdf_printer->printjob->Close((rdpPrintJob*)ulteo_pdf_printer->printjob);
 	xfree(printer->name);
 	xfree(printer);
 }
 
-static rdpPrinter* printer_cups_new_printer(rdpCupsPrinterDriver* cups_driver, const char* name, boolean is_default)
+static rdpPrinter* printer_ulteo_pdf_new_printer(rdpUlteoPdfPrinterDriver* ulteo_pdf_driver, const char* name, boolean is_default)
 {
-	rdpCupsPrinter* cups_printer;
+	rdpUlteoPdfPrinter* ulteo_pdf_printer;
 
-	cups_printer = xnew(rdpCupsPrinter);
+	ulteo_pdf_printer = xnew(rdpUlteoPdfPrinter);
 
-	cups_printer->printer.id = cups_driver->id_sequence++;
-	cups_printer->printer.name = xstrdup(name);
-	/* This is a generic PostScript printer driver developed by MS, so it should be good in most cases */
-	cups_printer->printer.driver = "MS Publisher Imagesetter";
-	cups_printer->printer.is_default = is_default;
+	ulteo_pdf_printer->printer.id = ulteo_pdf_driver->id_sequence++;
+	ulteo_pdf_printer->printer.name = xstrdup(name);
+	/* This is the PDF Ulteo driver. On printing, the printer transmits a PDF back to the client. */
+	ulteo_pdf_printer->printer.driver = "Ulteo TS Printer Driver";
+	ulteo_pdf_printer->printer.is_default = is_default;
 
-	cups_printer->printer.CreatePrintJob = printer_cups_create_printjob;
-	cups_printer->printer.FindPrintJob = printer_cups_find_printjob;
-	cups_printer->printer.Free = printer_cups_free_printer;
+	ulteo_pdf_printer->printer.CreatePrintJob = printer_ulteo_pdf_create_printjob;
+	ulteo_pdf_printer->printer.FindPrintJob = printer_ulteo_pdf_find_printjob;
+	ulteo_pdf_printer->printer.Free = printer_ulteo_pdf_free_printer;
 
-	return (rdpPrinter*)cups_printer;
+	return (rdpPrinter*)ulteo_pdf_printer;
 }
 
-static rdpPrinter** printer_cups_enum_printers(rdpPrinterDriver* driver)
+static rdpPrinter** printer_ulteo_pdf_enum_printers(rdpPrinterDriver* driver)
 {
 	rdpPrinter** printers;
-	int num_printers;
-	cups_dest_t *dests;
-	cups_dest_t *dest;
-	int num_dests;
-	int i;
-
-	num_dests = cupsGetDests(&dests);
-	printers = (rdpPrinter**)xzalloc(sizeof(rdpPrinter*) * (num_dests + 1));
-	num_printers = 0;
-	for (i = 0, dest = dests; i < num_dests; i++, dest++)
-	{
-		if (dest->instance == NULL)
-		{
-			printers[num_printers++] = printer_cups_new_printer((rdpCupsPrinterDriver*)driver,
-				dest->name, dest->is_default);
-		}
-	}
-	cupsFreeDests(num_dests, dests);
-
+	
+	printers = (rdpPrinter**)xzalloc(sizeof(rdpPrinter*) * 2);
+	printers[0] = printer_ulteo_pdf_new_printer((rdpUlteoPdfPrinterDriver*)driver,
+												"Ulteo OVD Printer",true);
 	return printers;
 }
 
-static rdpPrinter* printer_cups_get_printer(rdpPrinterDriver* driver, const char* name)
+static rdpPrinter* printer_ulteo_pdf_get_printer(rdpPrinterDriver* driver, const char* name)
 {
-	rdpCupsPrinterDriver* cups_driver = (rdpCupsPrinterDriver*)driver;
+	rdpUlteoPdfPrinterDriver* ulteo_pdf_driver = (rdpUlteoPdfPrinterDriver*)driver;
 
-	return printer_cups_new_printer(cups_driver, name, cups_driver->id_sequence == 1 ? true : false);
+	return printer_ulteo_pdf_new_printer(ulteo_pdf_driver, name, ulteo_pdf_driver->id_sequence == 1 ? true : false);
 }
 
-static rdpCupsPrinterDriver* cups_driver = NULL;
+// Single-instance (singleton-style)
+// It's not a printer driver but a printer-manager driver.
+static rdpUlteoPdfPrinterDriver* ulteo_pdf_driver = NULL;
 
-rdpPrinterDriver* printer_cups_get_driver(void)
+rdpPrinterDriver* printer_ulteo_pdf_get_driver(void)
 {
-	if (cups_driver == NULL)
+	if (ulteo_pdf_driver == NULL)
 	{
-		cups_driver = xnew(rdpCupsPrinterDriver);
+		ulteo_pdf_driver = xnew(rdpUlteoPdfPrinterDriver);
 
-		cups_driver->driver.EnumPrinters = printer_cups_enum_printers;
-		cups_driver->driver.GetPrinter = printer_cups_get_printer;
+		ulteo_pdf_driver->driver.EnumPrinters = printer_ulteo_pdf_enum_printers;
+		ulteo_pdf_driver->driver.GetPrinter = printer_ulteo_pdf_get_printer;
 
-		cups_driver->id_sequence = 1;
+		ulteo_pdf_driver->id_sequence = 1;
 
-#ifdef _CUPS_API_1_4
-		DEBUG_SVC("using CUPS API 1.4");
-#else
-		DEBUG_SVC("using CUPS API 1.2");
-#endif
 	}
 
-	return (rdpPrinterDriver*)cups_driver;
+	return (rdpPrinterDriver*)ulteo_pdf_driver;
 }
 
