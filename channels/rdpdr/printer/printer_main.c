@@ -323,6 +323,8 @@ int DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 	name = (char*)pEntryPoints->plugin_data->data[1];
 	driver_name = (char*)pEntryPoints->plugin_data->data[2];
 
+	DEBUG_WARN("NAME is %s, DRIVER_N is %s", name, driver_name);
+
 	if (name && name[0])
 	{
 		printer = driver->GetPrinter(driver, name);
@@ -334,7 +336,7 @@ int DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 		if (driver_name && driver_name[0])
 			printer->driver = driver_name;
 
-		printer_register(pEntryPoints, printer);
+		printer_register(pEntryPoints, printer);		
 	}
 	else
 	{
@@ -342,10 +344,20 @@ int DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 		for (i = 0; printers[i]; i++)
 		{
 			printer = printers[i];
+
 			printer_register(pEntryPoints, printer);
+
+			// Extra parameters with plugin_data
+			if (driver->ExtraInit) {
+				DEBUG_WARN("Entering extra init", name);
+				driver->ExtraInit((char**)pEntryPoints->plugin_data->data, printer);
+			}
+
 		}
 		xfree(printers);
 	}
+
+
 
 	return 0;
 }

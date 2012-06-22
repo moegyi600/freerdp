@@ -25,6 +25,7 @@
 
 #include "printer_main.h"
 
+#define MAX_PATH_SIZE 300
 rdpPrinterDriver* printer_ulteo_pdf_get_driver(void);
 
 #endif

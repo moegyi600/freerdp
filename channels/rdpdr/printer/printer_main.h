@@ -41,11 +41,16 @@ typedef struct rdp_print_job rdpPrintJob;
 
 typedef rdpPrinter** (*pcEnumPrinters) (rdpPrinterDriver* driver);
 typedef rdpPrinter* (*pcGetPrinter) (rdpPrinterDriver* driver, const char* name);
+typedef void (*pcFinishedJobNotify) (rdpPrinterDriver* driver, PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints);
+typedef int (*pcExtraInit) (char** plugin_data, rdpPrinter* rdp_printer);
 
 struct rdp_printer_driver
 {
 	pcEnumPrinters EnumPrinters;
 	pcGetPrinter GetPrinter;
+	// Used to tell client about a finished job.
+	pcFinishedJobNotify FinishedJobNotify;
+	pcExtraInit ExtraInit;
 };
 
 typedef rdpPrintJob* (*pcCreatePrintJob) (rdpPrinter* printer, uint32 id);
