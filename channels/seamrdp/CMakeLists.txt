@@ -17,11 +17,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_subdirectory(cliprdr)
-add_subdirectory(drdynvc)
-add_subdirectory(rdpdbg)
-add_subdirectory(rdpdr)
-add_subdirectory(rail)
-add_subdirectory(rdpsnd)
-add_subdirectory(seamrdp)
+set(SEAMRDP_SRCS
+	seamrdp_main.c
+)
 
+add_library(seamrdp ${SEAMRDP_SRCS})
+set_target_properties(seamrdp PROPERTIES PREFIX "")
+
+target_link_libraries(seamrdp freerdp-utils)
+
+install(TARGETS seamrdp DESTINATION ${FREERDP_PLUGIN_PATH})

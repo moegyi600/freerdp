@@ -854,6 +854,7 @@ static const char* event_class_to_name_table[] =
 	"cliprdr",  /* RDP_EVENT_CLASS_CLIPRDR */
 	"tsmf",     /* RDP_EVENT_CLASS_TSMF */
 	"rail",     /* RDP_EVENT_CLASS_RAIL */
+	"seamrdp",  /* RDP_EVENT_CLASS_SEAMRDP */
 	NULL
 };
 
