@@ -855,6 +855,7 @@ static const char* event_class_to_name_table[] =
 	"tsmf",     /* RDP_EVENT_CLASS_TSMF */
 	"rail",     /* RDP_EVENT_CLASS_RAIL */
 	"seamrdp",  /* RDP_EVENT_CLASS_SEAMRDP */
+	"ovdapp",   /* RDP_EVENT_CLASS_OVDAPP */
 	NULL
 };
 

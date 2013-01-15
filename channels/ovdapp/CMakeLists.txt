@@ -17,12 +17,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_subdirectory(cliprdr)
-add_subdirectory(drdynvc)
-add_subdirectory(rdpdbg)
-add_subdirectory(rdpdr)
-add_subdirectory(rail)
-add_subdirectory(rdpsnd)
-add_subdirectory(seamrdp)
-add_subdirectory(ovdapp)
+set(OVDAPP_SRCS
+	ovdapp_main.c
+)
 
+add_library(ovdapp ${OVDAPP_SRCS})
+set_target_properties(ovdapp PROPERTIES PREFIX "")
+
+target_link_libraries(ovdapp freerdp-utils)
+
+install(TARGETS ovdapp DESTINATION ${FREERDP_PLUGIN_PATH})
