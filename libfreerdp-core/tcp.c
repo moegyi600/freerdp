@@ -109,6 +109,51 @@ void tcp_get_mac_address(rdpTcp * tcp)
 		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]); */
 }
 
+// gateway is used, start ssl session
+boolean tcp_enable_gateway(rdpTcp* tcp)
+{
+	int ret;
+
+	SSL_library_init();
+	OPENSSL_add_all_algorithms_conf();
+	SSL_load_error_strings();
+	tcp->ssl_method = SSLv3_client_method();
+	if(tcp->ssl_method == NULL)
+	{
+		printf("tcp_connect: SSLv3_client_method: NULL\n");
+		return false;
+	}
+	tcp->ssl_ctx = SSL_CTX_new(tcp->ssl_method);
+	if(tcp->ssl_ctx == NULL)
+	{
+		printf("tcp_connect: SSL_CTX_new: NULL\n");
+		return false;
+	}
+	tcp->ssl = SSL_new(tcp->ssl_ctx);
+	if(tcp->ssl == NULL)
+	{
+		printf("tcp_connect: SSL_new: NULL\n");
+		return false;
+	}
+	ret = SSL_set_fd(tcp->ssl, tcp->sockfd);
+	if(ret <= 0) {
+		int errcode = SSL_get_error(tcp->ssl, ret);
+		printf("tcp_connect: ssl_set_fd: err code = %d\n", errcode);
+		return false;
+	}
+	//specify that it will be a client session
+	SSL_set_connect_state(tcp->ssl);
+	//connect to the server and do the handshake
+	ret = SSL_connect(tcp->ssl);
+	if(ret <= 0) {
+		int errcode = SSL_get_error(tcp->ssl, ret);
+		printf("tcp_connect: SSL_connect: err code = %d\n", errcode);
+		return false;
+	}
+
+	return true;
+}
+
 boolean tcp_connect(rdpTcp* tcp, const char* hostname, uint16 port)
 {
 	int status;
@@ -159,6 +204,14 @@ boolean tcp_connect(rdpTcp* tcp, const char* hostname, uint16 port)
 	tcp_get_ip_address(tcp);
 	tcp_get_mac_address(tcp);
 
+	if (tcp->settings->gateway)
+	{
+		if (!tcp_enable_gateway(tcp))
+		{
+			return false;
+		}
+	}
+
 	option_value = 1;
 	option_len = sizeof(option_value);
 	setsockopt(tcp->sockfd, IPPROTO_TCP, TCP_NODELAY, (void*) &option_value, option_len);
@@ -183,7 +236,10 @@ int tcp_read(rdpTcp* tcp, uint8* data, int length)
 {
 	int status;
 
-	status = recv(tcp->sockfd, data, length, 0);
+	if (tcp->settings->gateway)
+		status = SSL_read(tcp->ssl, data, length);
+	else
+		status = recv(tcp->sockfd, data, length, 0);
 
 	if (status == 0)
 	{
@@ -217,7 +273,10 @@ int tcp_write(rdpTcp* tcp, uint8* data, int length)
 {
 	int status;
 
-	status = send(tcp->sockfd, data, length, MSG_NOSIGNAL);
+	if(tcp->settings->gateway)
+		status = SSL_write(tcp->ssl, data, length);
+	else
+		status = send(tcp->sockfd, data, length, MSG_NOSIGNAL);
 
 	if (status < 0)
 	{
@@ -244,6 +303,12 @@ boolean tcp_disconnect(rdpTcp * tcp)
 {
 	if (tcp->sockfd != -1)
 	{
+		if (tcp->settings->gateway)
+		{
+			SSL_shutdown(tcp->ssl);
+			SSL_CTX_free(tcp->ssl_ctx);
+		}
+
 		shutdown(tcp->sockfd, SHUT_RDWR);
 		close(tcp->sockfd);
 		tcp->sockfd = -1;

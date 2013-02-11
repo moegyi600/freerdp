@@ -383,6 +383,17 @@ int freerdp_parse_args(rdpSettings* settings, int argc, char** argv,
 				return FREERDP_ARGS_PARSE_FAILURE;
 			}
 		}
+		else if (strcmp("--gateway", argv[index]) == 0)
+		{
+			index++;
+			if (index == argc)
+			{
+				printf("missing gateway token\n");
+				return FREERDP_ARGS_PARSE_FAILURE;
+			}
+			settings->gateway = true;
+			strncpy(settings->gateway_token, argv[index], sizeof(settings->gateway_token));
+		}
 		else if (strcmp("--rfx", argv[index]) == 0)
 		{
 			settings->rfx_codec = true;

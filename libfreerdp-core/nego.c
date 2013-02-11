@@ -404,6 +404,13 @@ boolean nego_send_negotiation_request(rdpNego* nego)
 		int cookie_length = strlen(nego->cookie);
 		stream_write(s, "Cookie: mstshash=", 17);
 		stream_write(s, (uint8*)nego->cookie, cookie_length);
+		if (nego->transport->settings->gateway) {
+			int token_length = strlen(nego->transport->settings->gateway_token);
+			stream_write(s, ";token=", 7);
+			stream_write(s, (uint8*)nego->transport->settings->gateway_token, token_length);
+			stream_write(s, ";", 1);
+			length += token_length + 8;
+		}
 		stream_write_uint8(s, 0x0D); /* CR */
 		stream_write_uint8(s, 0x0A); /* LF */
 		length += cookie_length + 19;

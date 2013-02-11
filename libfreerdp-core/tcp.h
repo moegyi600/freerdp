@@ -30,6 +30,8 @@
 #include <freerdp/types.h>
 #include <freerdp/settings.h>
 #include <freerdp/utils/stream.h>
+#include "openssl/ssl.h"
+#include "openssl/err.h"
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
@@ -46,6 +48,9 @@ struct rdp_tcp
 #ifdef _WIN32
 	WSAEVENT wsa_event;
 #endif
+	const SSL_METHOD *ssl_method;
+	SSL_CTX *ssl_ctx;
+	SSL *ssl;
 };
 
 boolean tcp_connect(rdpTcp* tcp, const char* hostname, uint16 port);

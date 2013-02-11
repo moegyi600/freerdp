@@ -448,6 +448,10 @@ struct rdp_settings
 	/* Extensions */
 	int num_extensions;
 	struct rdp_ext_set extensions[16];
+
+	/* ovd gateway */
+	boolean gateway;
+	char gateway_token[128];
 };
 typedef struct rdp_settings rdpSettings;
 
