@@ -4,6 +4,10 @@
  *
  * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
+ * Copyright (C) 2013 Ulteo SAS
+ * http://www.ulteo.com
+ * Author David PHAM-VAN <d.pham-van@ulteo.com> 2013
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -1211,6 +1215,49 @@ void update_read_cache_bitmap_order(STREAM* s, CACHE_BITMAP_ORDER* cache_bitmap_
 	cache_bitmap_order->compressed = compressed;
 }
 
+void update_read_cache_jpeg_order(STREAM* s, CACHE_JPEG_ORDER* cache_jpeg_order, uint16 flags) {
+	uint8 lowbyte;
+	uint8 *jpeg_data;
+
+	cache_jpeg_order->cacheId = flags & 0x0007;
+	cache_jpeg_order->bitmapBpp = ((flags & 0x0038) >> 3) - 2;
+	if ((flags & 0x0100) != 0)
+	{
+		stream_seek(s, 8);
+	}
+
+	stream_read_uint8(s, cache_jpeg_order->bitmapWidth);
+	if (flags & 0x0080)
+	{
+		cache_jpeg_order->bitmapHeight = cache_jpeg_order->bitmapWidth;
+	}
+	else
+	{
+		stream_read_uint8(s, cache_jpeg_order->bitmapHeight);
+	}
+
+	stream_read_uint8(s, cache_jpeg_order->bitmapLength);
+	if (cache_jpeg_order->bitmapLength & 0x40)
+	{
+		stream_read_uint8(s, lowbyte);
+		cache_jpeg_order->bitmapLength = ((cache_jpeg_order->bitmapLength ^ 0x40) << 8) + lowbyte;
+	}
+
+	stream_read_uint8(s, cache_jpeg_order->cacheIndex);
+	if (cache_jpeg_order->cacheIndex & 0x80)
+	{
+		stream_read_uint8(s, lowbyte);
+		cache_jpeg_order->cacheIndex = ((cache_jpeg_order->cacheIndex ^ 0x80) << 8) + lowbyte;
+	}
+
+	stream_get_mark(s, cache_jpeg_order->bitmapDataStream);
+	stream_seek(s, cache_jpeg_order->bitmapLength); /* bitmapDataStream */
+
+#ifdef WITH_DEBUG_ORDERS
+	printf("Jpeg Cache Order (0x%X)\n", ORDER_TYPE_CACHE_JPEG);
+#endif
+}
+
 void update_read_cache_bitmap_v2_order(STREAM* s, CACHE_BITMAP_V2_ORDER* cache_bitmap_v2_order, boolean compressed, uint16 flags)
 {
 	uint8 bitsPerPixelId;
@@ -1906,6 +1953,11 @@ void update_recv_secondary_order(rdpUpdate* update, STREAM* s, uint8 flags)
 		case ORDER_TYPE_CACHE_BRUSH:
 			update_read_cache_brush_order(s, &(secondary->cache_brush_order), extraFlags);
 			IFCALL(secondary->CacheBrush, context, &(secondary->cache_brush_order));
+			break;
+
+		case ORDER_TYPE_CACHE_JPEG:
+			update_read_cache_jpeg_order(s, &(secondary->cache_jpeg_order), extraFlags);
+			IFCALL(secondary->CacheJpeg, context, &(secondary->cache_jpeg_order));
 			break;
 
 		default:

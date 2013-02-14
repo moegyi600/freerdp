@@ -4,6 +4,10 @@
  *
  * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
+ * Copyright (C) 2013 Ulteo SAS
+ * http://www.ulteo.com
+ * Author David PHAM-VAN <d.pham-van@ulteo.com> 2013
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -165,6 +169,7 @@
 #define ORDER_TYPE_BITMAP_COMPRESSED_V2		0x05
 #define ORDER_TYPE_CACHE_BRUSH			0x07
 #define ORDER_TYPE_BITMAP_COMPRESSED_V3		0x08
+#define ORDER_TYPE_CACHE_JPEG				99
 
 /* Alternate Secondary Drawing Orders */
 #define ORDER_TYPE_SWITCH_SURFACE		0x00

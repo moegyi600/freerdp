@@ -4,6 +4,10 @@
  *
  * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
+ * Copyright (C) 2013 Ulteo SAS
+ * http://www.ulteo.com
+ * Author David PHAM-VAN <d.pham-van@ulteo.com> 2013
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -79,6 +83,18 @@ struct _CACHE_BITMAP_ORDER
 	uint8* bitmapDataStream;
 };
 typedef struct _CACHE_BITMAP_ORDER CACHE_BITMAP_ORDER;
+
+struct _CACHE_JPEG_ORDER
+{
+	uint32 cacheId;
+	uint32 bitmapBpp;
+	uint32 bitmapWidth;
+	uint32 bitmapHeight;
+	uint16 bitmapLength;
+	uint32 cacheIndex;
+	uint8* bitmapDataStream;
+};
+typedef struct _CACHE_JPEG_ORDER CACHE_JPEG_ORDER;
 
 struct _CACHE_BITMAP_V2_ORDER
 {
@@ -193,6 +209,7 @@ typedef void (*pCacheColorTable)(rdpContext* context, CACHE_COLOR_TABLE_ORDER* c
 typedef void (*pCacheGlyph)(rdpContext* context, CACHE_GLYPH_ORDER* cache_glyph_order);
 typedef void (*pCacheGlyphV2)(rdpContext* context, CACHE_GLYPH_V2_ORDER* cache_glyph_v2_order);
 typedef void (*pCacheBrush)(rdpContext* context, CACHE_BRUSH_ORDER* cache_brush_order);
+typedef void (*pCacheJpeg)(rdpContext* context, CACHE_JPEG_ORDER* cache_jpeg_order);
 
 struct rdp_secondary_update
 {
@@ -206,7 +223,8 @@ struct rdp_secondary_update
 	pCacheGlyph CacheGlyph; /* 20 */
 	pCacheGlyphV2 CacheGlyphV2; /* 21 */
 	pCacheBrush CacheBrush; /* 22 */
-	uint32 paddingE[32 - 23]; /* 23 */
+	pCacheJpeg CacheJpeg; /* 23 */
+	uint32 paddingE[32 - 24]; /* 24 */
 
 	/* internal */
 
@@ -218,6 +236,7 @@ struct rdp_secondary_update
 	CACHE_GLYPH_ORDER cache_glyph_order;
 	CACHE_GLYPH_V2_ORDER cache_glyph_v2_order;
 	CACHE_BRUSH_ORDER cache_brush_order;
+	CACHE_JPEG_ORDER cache_jpeg_order;
 };
 typedef struct rdp_secondary_update rdpSecondaryUpdate;
 

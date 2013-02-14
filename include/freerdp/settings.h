@@ -4,6 +4,10 @@
  *
  * Copyright 2009-2011 Jay Sorg
  *
+ * Copyright (C) 2013 Ulteo SAS
+ * http://www.ulteo.com
+ * Author David PHAM-VAN <d.pham-van@ulteo.com> 2013
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -452,6 +456,9 @@ struct rdp_settings
 	/* ovd gateway */
 	boolean gateway;
 	char gateway_token[128];
+
+	/* ovd jpeg */
+	boolean jpeg;
 };
 typedef struct rdp_settings rdpSettings;
 

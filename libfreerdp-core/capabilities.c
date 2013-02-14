@@ -4,6 +4,10 @@
  *
  * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
+ * Copyright (C) 2013 Ulteo SAS
+ * http://www.ulteo.com
+ * Author David PHAM-VAN <d.pham-van@ulteo.com> 2013
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -1029,6 +1033,35 @@ void rdp_write_bitmap_cache_v2_capability_set(STREAM* s, rdpSettings* settings)
 }
 
 /**
+ * Read jpeg cache capability set.\n
+ * OVD JPEG Cache Capability
+ * @param s stream
+ * @param settings settings
+ */
+
+void rdp_read_jpegcache_capability_set(STREAM* s, uint16 length, rdpSettings* settings)
+{
+	uint16 flags;
+
+	stream_read_uint16(s, settings->jpeg);
+}
+
+/**
+ * Output jpeg cache capability set.\n
+ * OVD JPEG Cache Capability
+ * @param s stream
+ * @param settings settings
+ */
+void rdp_write_jpegcache_capability_set(STREAM* s, rdpSettings* settings)
+{
+	uint8* header;
+
+	header = rdp_capability_set_start(s);
+	stream_write_uint16(s, settings->jpeg?0x1:0x0); // use jpeg cache
+	rdp_capability_set_finish(s, header, CAPSET_TYPE_JPEGCACHE);
+}
+
+/**
  * Read virtual channel capability set.\n
  * @msdn{cc240551}
  * @param s stream
@@ -1765,6 +1798,10 @@ boolean rdp_read_capability_sets(STREAM* s, rdpSettings* settings, uint16 number
 				rdp_read_frame_acknowledge_capability_set(s, length, settings);
 				break;
 
+			case CAPSET_TYPE_JPEGCACHE:
+				rdp_read_jpegcache_capability_set(s, length, settings);
+				break;
+
 			default:
 				printf("unknown capability type %d\n", type);
 				break;
@@ -2065,6 +2102,9 @@ void rdp_write_confirm_active(STREAM* s, rdpSettings* settings)
 			rdp_write_frame_acknowledge_capability_set(s, settings);
 		}
 	}
+
+	rdp_write_jpegcache_capability_set(s, settings);
+	numberCapabilities++;
 
 	stream_get_mark(s, em);
 

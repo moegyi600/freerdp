@@ -4,6 +4,10 @@
  *
  * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
+ * Copyright (C) 2013 Ulteo SAS
+ * http://www.ulteo.com
+ * Author David PHAM-VAN <d.pham-van@ulteo.com> 2013
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -56,6 +60,7 @@
 #define CAPSET_TYPE_SURFACE_COMMANDS		0x001C
 #define CAPSET_TYPE_BITMAP_CODECS		0x001D
 #define CAPSET_TYPE_FRAME_ACKNOWLEDGE           0x001E
+#define CAPSET_TYPE_JPEGCACHE			99
 
 #define CAPSET_HEADER_LENGTH			4
 
