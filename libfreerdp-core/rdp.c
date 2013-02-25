@@ -4,6 +4,10 @@
  *
  * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
+ * Copyright (C) 2013 Ulteo SAS
+ * http://www.ulteo.com
+ * Author Alexandre CONFIANT-LATOUR <a.confiant@ulteo.com> 2013
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -544,6 +548,7 @@ void rdp_recv_data_pdu(rdpRdp* rdp, STREAM* s)
 			break;
 
 		case DATA_PDU_TYPE_SET_KEYBOARD_IME_STATUS:
+			input_recv_keyboard_ime_status_event(rdp->input, s);
 			break;
 
 		case DATA_PDU_TYPE_OFFSCREEN_CACHE_ERROR:

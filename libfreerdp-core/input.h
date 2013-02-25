@@ -4,6 +4,10 @@
  *
  * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
+ * Copyright (C) 2013 Ulteo SAS
+ * http://www.ulteo.com
+ * Author Alexandre CONFIANT-LATOUR <a.confiant@ulteo.com> 2013
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -50,6 +54,7 @@ void input_send_fastpath_mouse_event(rdpInput* input, uint16 flags, uint16 x, ui
 void input_send_fastpath_extended_mouse_event(rdpInput* input, uint16 flags, uint16 x, uint16 y);
 
 boolean input_recv(rdpInput* input, STREAM* s);
+void input_recv_keyboard_ime_status_event(rdpInput* input, STREAM* s);
 
 void input_register_client_callbacks(rdpInput* input);
 

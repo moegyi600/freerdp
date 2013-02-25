@@ -4,6 +4,10 @@
  *
  * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
+ * Copyright (C) 2013 Ulteo SAS
+ * http://www.ulteo.com
+ * Author Alexandre CONFIANT-LATOUR <a.confiant@ulteo.com> 2013
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -50,6 +54,21 @@ typedef struct rdp_input rdpInput;
 #define KBD_SYNC_CAPS_LOCK		0x00000004
 #define KBD_SYNC_KANA_LOCK		0x00000008
 
+/* Keyboard IME Status Flags */
+#define IME_STATE_CLOSED = 0x000;
+#define IME_STATE_OPEN = 0x001;
+#define IME_CMODE_NATIVE = 0x001;       /* ! NATIVE = Alphanum */
+#define IME_CMODE_KATAKANA = 0x002;     /* ! KATAKANA = Hiragana */
+#define IME_CMODE_FULLSHAPE = 0x008;    /* ! FULLSHAPE = half-width */
+#define IME_CMODE_ROMAN = 0x010;        /* Roman input */
+#define IME_CMODE_CHARCODE = 0x020;     /* Character-code input */
+#define IME_CMODE_HANJACONVERT = 0x040; /* Hanja conversion enabled */
+#define IME_CMODE_SOFTKBD = 0x080;      /* On-screen keyboard enabled */
+#define IME_CMODE_NOCONVERSION = 0x100; /* IME conversion is inactive */
+#define IME_CMODE_EUDC = 0x200;         /* End-User Defined Character mode */
+#define IME_CMODE_SYMBOL = 0x400;       /* Symbol conversion mode */
+#define IME_CMODE_FIXED = 0x800;        /* Fixed conversion mode */
+
 #define RDP_CLIENT_INPUT_PDU_HEADER_LENGTH	4
 
 typedef void (*pSynchronizeEvent)(rdpInput* input, uint32 flags);
@@ -57,6 +76,7 @@ typedef void (*pKeyboardEvent)(rdpInput* input, uint16 flags, uint16 code);
 typedef void (*pUnicodeKeyboardEvent)(rdpInput* input, uint16 flags, uint16 code);
 typedef void (*pMouseEvent)(rdpInput* input, uint16 flags, uint16 x, uint16 y);
 typedef void (*pExtendedMouseEvent)(rdpInput* input, uint16 flags, uint16 x, uint16 y);
+typedef void (*pKeyboardImeStatusEvent)(rdpInput* input, uint32 imeState, uint32 imeConvMode);
 
 struct rdp_input
 {
@@ -69,7 +89,8 @@ struct rdp_input
 	pUnicodeKeyboardEvent UnicodeKeyboardEvent; /* 18 */
 	pMouseEvent MouseEvent; /* 19 */
 	pExtendedMouseEvent ExtendedMouseEvent; /* 20 */
-	uint32 paddingB[32 - 21]; /* 21 */
+	pKeyboardImeStatusEvent KeyboardImeStatusEvent; /* 21 */
+	uint32 paddingB[32 - 22]; /* 22 */
 };
 
 #endif /* __INPUT_API_H */

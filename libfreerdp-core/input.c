@@ -4,6 +4,10 @@
  *
  * Copyright 2011 Marc-Andre Moreau <marcandre.moreau@gmail.com>
  *
+ * Copyright (C) 2013 Ulteo SAS
+ * http://www.ulteo.com
+ * Author Alexandre CONFIANT-LATOUR <a.confiant@ulteo.com> 2013
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -356,6 +360,20 @@ boolean input_recv(rdpInput* input, STREAM* s)
 	}
 
 	return true;
+}
+
+void input_recv_keyboard_ime_status_event(rdpInput* input, STREAM* s) {
+	uint32 imeState;
+	uint32 imeConvMode;
+
+	if (stream_get_left(s) < 10)
+		return;
+
+	stream_seek(s, 2); /* unitId, always 0x00, unused */
+	stream_read_uint32(s, imeState);
+	stream_read_uint32(s, imeConvMode);
+
+	IFCALL(input->KeyboardImeStatusEvent, input, imeState, imeConvMode);
 }
 
 void input_register_client_callbacks(rdpInput* input)
