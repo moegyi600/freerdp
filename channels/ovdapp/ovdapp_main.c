@@ -55,7 +55,7 @@ static void ovdapp_process_receive(rdpSvcPlugin* plugin, STREAM* data_in)
 	/* stream_get_size gives the data size in bytes */
 	int i;
 	int len = stream_get_size(data_in);
-	char *data = stream_get_data(data_in);
+	char *data = (char*) stream_get_data(data_in);
 	RDP_EVENT *event = malloc(sizeof(RDP_EVENT));
 
 	/*
