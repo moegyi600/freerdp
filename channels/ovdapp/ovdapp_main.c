@@ -31,9 +31,6 @@
 #include <freerdp/utils/memory.h>
 #include <freerdp/utils/svc_plugin.h>
 
-#include <guacamole/client.h>
-#include <guacamole/socket.h>
-
 typedef struct ovdapp_plugin
 {
 	rdpSvcPlugin plugin;

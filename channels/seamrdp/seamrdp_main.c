@@ -32,9 +32,6 @@
 #include <freerdp/utils/memory.h>
 #include <freerdp/utils/svc_plugin.h>
 
-#include <guacamole/client.h>
-#include <guacamole/socket.h>
-
 typedef struct seamrdp_plugin
 {
 	rdpSvcPlugin plugin;
