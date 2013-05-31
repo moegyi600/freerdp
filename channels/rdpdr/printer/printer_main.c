@@ -349,7 +349,7 @@ int DeviceServiceEntry(PDEVICE_SERVICE_ENTRY_POINTS pEntryPoints)
 
 			// Extra parameters with plugin_data
 			if (driver->ExtraInit) {
-				DEBUG_WARN("Entering extra init", name);
+				DEBUG_WARN("Entering extra init");
 				driver->ExtraInit((char**)pEntryPoints->plugin_data->data, printer);
 			}
 
