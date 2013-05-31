@@ -89,7 +89,7 @@ static void seamrdp_process_event(rdpSvcPlugin* plugin, RDP_EVENT* event)
 	stream_write(stream, event->user_data, len);
 	stream_write_uint8(stream, 0);
 
-	printf("Seamrdp output : %s\n", ((char*)(stream_get_data(stream))));
+	/*printf("Seamrdp output : %s\n", ((char*)(stream_get_data(stream))));*/
 
 	/* Send the stream to the server */
 	svc_plugin_send(plugin, stream);

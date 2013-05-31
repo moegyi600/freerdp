@@ -79,7 +79,7 @@ static void ovdapp_process_receive(rdpSvcPlugin* plugin, STREAM* data_in)
 
 	((char*)(event->user_data))[len*2] = '\0';
 
-	printf("OvdApp input data(%d) : %s\n", strlen((char*)(event->user_data)), ((char*)(event->user_data)));
+	/*printf("OvdApp input data(%d) : %s\n", strlen((char*)(event->user_data)), ((char*)(event->user_data)));*/
 
 	/* Send the event to the main program */
 	svc_plugin_send_event(plugin, event);
@@ -113,7 +113,7 @@ static void ovdapp_process_event(rdpSvcPlugin* plugin, RDP_EVENT* event)
 	}
 	stream_write_uint8(stream, 0);
 
-	printf("OvdApp output data(%d) : %s\n", strlen((char*)(stream_get_data(stream))), ((char*)(stream_get_data(stream))));
+	/*printf("OvdApp output data(%d) : %s\n", strlen((char*)(stream_get_data(stream))), ((char*)(stream_get_data(stream))));*/
 
 	/* Send the stream to the server */
 	svc_plugin_send(plugin, stream);
