@@ -100,4 +100,4 @@ static void seamrdp_process_terminate(rdpSvcPlugin* plugin)
 	printf("Seamrdp terminate\n");
 }
 
-DEFINE_SVC_PLUGIN(seamrdp, "seamrdp", CHANNEL_OPTION_INITIALIZED | CHANNEL_OPTION_ENCRYPT_RDP | CHANNEL_OPTION_COMPRESS_RDP | CHANNEL_OPTION_SHOW_PROTOCOL)
+DEFINE_SVC_PLUGIN(seamrdp, "seamrdp", CHANNEL_OPTION_INITIALIZED | CHANNEL_OPTION_ENCRYPT_RDP)
