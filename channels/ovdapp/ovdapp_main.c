@@ -97,7 +97,7 @@ static void ovdapp_process_event(rdpSvcPlugin* plugin, RDP_EVENT* event)
 	char buffer[3];
 	unsigned int tmp;
 	int len = strlen(event->user_data);
-	STREAM *stream = stream_new((len/2)+1);
+	STREAM *stream = stream_new((len/2)+2);
 
 	/* Copy event data to stream */
 	for(i=0 ; i<len ; i+=2) {

@@ -24,7 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include <freerdp/types.h>
 #include <freerdp/freerdp.h>
@@ -52,18 +51,17 @@ static void seamrdp_process_receive(rdpSvcPlugin* plugin, STREAM* data_in)
 		 - Send it to the main process "with svc_plugin_send_event"
 		 - Free stream
 	*/
-	int len = strlen((char*) stream_get_data(data_in));
+	int len = stream_get_size(data_in);
 	RDP_EVENT *event = malloc(sizeof(RDP_EVENT));
 
 	/* Create a new event and copy data from stream */
+	/* Be carefull ! There is no guarantee that the stream is null-terminated */
 	event->event_class = RDP_EVENT_CLASS_SEAMRDP;
 	event->event_type = 0;
 	event->on_event_free_callback = NULL;
 	event->user_data = malloc(len+1);
 	strncpy(event->user_data, (const char*) stream_get_data(data_in), len);
 	((char*)(event->user_data))[len] = '\0';
-
-	/*printf("Seamrdp input : %s\n", ((char*)(event->user_data)));*/
 
 	/* Send the event to the main program */
 	svc_plugin_send_event(plugin, event);
@@ -80,13 +78,11 @@ static void seamrdp_process_event(rdpSvcPlugin* plugin, RDP_EVENT* event)
 		 - Free event
 	*/
 	int len = strlen(event->user_data);
-	STREAM *stream = stream_new(len+1);
+	STREAM *stream = stream_new(len);
 
 	/* Copy event data to stream */
+	/* The stream keeps the data size. We don't need to make it null-terminated */
 	stream_write(stream, event->user_data, len);
-	stream_write_uint8(stream, 0);
-
-	/*printf("Seamrdp output : %s\n", ((char*)(stream_get_data(stream))));*/
 
 	/* Send the stream to the server */
 	svc_plugin_send(plugin, stream);
