@@ -44,33 +44,23 @@ typedef struct rdp_ulteo_pdf_printer_driver rdpUlteoPdfPrinterDriver;
 typedef struct rdp_ulteo_pdf_printer rdpUlteoPdfPrinter;
 typedef struct rdp_ulteo_pdf_print_job rdpUlteoPdfPrintJob;
 
-struct rdp_ulteo_pdf_printer_driver
-{
+struct rdp_ulteo_pdf_printer_driver {
 	rdpPrinterDriver driver;
-
 	int id_sequence;
 };
 
-struct rdp_ulteo_pdf_printer
-{
+struct rdp_ulteo_pdf_printer {
 	rdpPrinter printer;
 	rdpPrintJob* printjob;
 	int spool_fifo;
 	char spool_dir[MAX_PATH_SIZE];
 };
 
-/* static void printer_ulteo_pdf_get_printjob_name(char* buf, int size) */
-/* { */
-/* 	time_t tt; */
-/* 	struct tm* t; */
-
-/* 	tt = time(NULL); */
-/* 	t = localtime(&tt); */
-/* 	snprintf(buf, size - 1, "FreeRDP Print Job %d%02d%02d%02d%02d%02d", */
-/* 		t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, */
-/* 		t->tm_hour, t->tm_min, t->tm_sec); */
-/* } */
-
+/**
+ * Single-instance (singleton-style)
+ * It's not a printer driver but a printer-manager driver.
+ */
+static rdpUlteoPdfPrinterDriver* ulteo_pdf_driver = NULL;
 
 /**
  * Return the name of the job filename
@@ -85,203 +75,198 @@ char* printer_ulteo_pdf_get_job_filename(const rdpPrintJob* printJob) {
 	return filename;
 }
 
-
-/// Should be the same FIFO filename as in libguac-client-rdp
-
-//FIXME: Trashit
-/* char* printer_ulteo_pdf_get_fifo_filename() { */
-/* 	char* filename = malloc(sizeof(char)*200); */
-/* 	sprintf(filename,"%s/fifo", FREERDP_ULTEO_SPOOL_PATH); */
-/* 	return filename; */
-/* } */
-
-/// Here we have in data the PDF data as received from the server.
-static void printer_ulteo_pdf_write_printjob(rdpPrintJob* printjob, uint8* data, int size)
-{
+/**
+ * Write the PDF data in a file
+ */
+static void printer_ulteo_pdf_write_printjob(rdpPrintJob* printjob, uint8* data, int size) {
 	FILE* fp;
-
-	// Path of the PDF
 	char* filename = printer_ulteo_pdf_get_job_filename(printjob);
 
 	fp = fopen(filename, "a+b");
-	if (fp == NULL)
-		{
-			DEBUG_WARN("failed to open file %s", filename);
-			return;
-		}
-	if (fwrite(data, 1, size, fp) < size)
-		{
-			DEBUG_WARN("failed to write file %s", filename);
-		}
-	fclose(fp);
-	DEBUG_WARN("Write %i job data", size);
-
-	// Now notify guacd about this file being ready.
-	//write(printer->spool_fifo, filename, strlen(filename)+1);
-
-	free(filename);
-
-}
-
-
-/**
- * Simply called when the document has finished transmission
- *
- * Transmits the information to guacd that a PDF job is ready.
- */
-static void printer_ulteo_pdf_close_printjob(rdpPrintJob* printjob)
-{
-	char* job_filename = printer_ulteo_pdf_get_job_filename(printjob);
-	rdpUlteoPdfPrinter* printer = (rdpUlteoPdfPrinter*)(printjob->printer);
-
-	DEBUG_WARN("Close %i job, wrote to %s", printjob->id, job_filename);
-	//char* fifo_filename = printer_ulteo_pdf_get_fifo_filename();
-
-	// Communicate with guacd
-	if (write(printer->spool_fifo, job_filename, strlen(job_filename)+1) <= 0) {
-		DEBUG_WARN("Cannot write to fifo in %s", printer->spool_dir);
-		perror("reason :");
+	if (fp == NULL) {
+		DEBUG_WARN("Ulteo printer : Failed to open %s", filename);
+		return;
 	}
 
-	free(job_filename);
+	if (fwrite(data, 1, size, fp) < size) {
+		DEBUG_WARN("Ulteo printer : Failed to write %s", filename);
+	}
+
+	fclose(fp);
+	DEBUG_WARN("Ulteo printer : Writing to %s (%i bytes)", filename, size);
+
+	free(filename);
+}
+
+/**
+ * Write has finished
+ */
+static void printer_ulteo_pdf_close_printjob(rdpPrintJob* printjob) {
+	char* filename = printer_ulteo_pdf_get_job_filename(printjob);
+	rdpUlteoPdfPrinter* printer = (rdpUlteoPdfPrinter*)(printjob->printer);
+
+	DEBUG_WARN("Ulteo printer : Closing %s", filename);
+
+	/* Communicate with guacd */
+	if (write(printer->spool_fifo, filename, strlen(filename)+1) <= 0) {
+		DEBUG_WARN("Ulteo printer : Can't write in fifo %s", printer->spool_dir);
+		perror("reason : ");
+	}
+
+	free(filename);
 	((rdpUlteoPdfPrinter*)printjob->printer)->printjob = NULL;
 }
 
-static rdpPrintJob* printer_ulteo_pdf_create_printjob(rdpPrinter* printer, uint32 id)
-{
-	rdpUlteoPdfPrinter* ulteo_pdf_printer = (rdpUlteoPdfPrinter*)printer;
+/**
+ * New printer job
+ */
+static rdpPrintJob* printer_ulteo_pdf_create_printjob(rdpPrinter* rdp_printer, uint32 id) {
+	rdpUlteoPdfPrinter* printer = (rdpUlteoPdfPrinter*)rdp_printer;
 	rdpPrintJob* printjob = xnew(rdpPrintJob);
 
-
-	if (access(ulteo_pdf_printer->spool_dir, W_OK) != 0) {
-		printf("Error , %s : cannot open to write PDF files", ulteo_pdf_printer->spool_dir);
-	}
-
-	/* free(filename); */
-	DEBUG_WARN("Create %i job", printjob->id);
-
-	// Means that we cannot transmit two documents at the same time on the remote printer.
-	if (ulteo_pdf_printer->printjob != NULL) {
-		DEBUG_WARN("Refusing job %i as another is still transmissing", 
-				   id);
+	/* Can write in spool ? */
+	if (access(printer->spool_dir, W_OK) != 0) {
+		DEBUG_WARN("Ulteo printer : Can't open the spool directory (%s)", printer->spool_dir);
 		return NULL;
 	}
 
-	printjob->id = id;
-	printjob->printer = printer;
+	DEBUG_WARN("Ulteo printer : New job %i", printjob->id);
 
+	/* No other job in progress ? */
+	if (printer->printjob != NULL) {
+		DEBUG_WARN("Ulteo printer : Job in progress. Refusing task");
+		return NULL;
+	}
+
+	/* Job struct */
+	printjob->id = id;
+	printjob->printer = rdp_printer;
+
+	/* Callbacks */
 	printjob->Write = printer_ulteo_pdf_write_printjob;
 	printjob->Close = printer_ulteo_pdf_close_printjob;
 
-	ulteo_pdf_printer->printjob = printjob;
-
-	//TODO: keep track of the jobs in a list.
+	/* Printer current job */
+	printer->printjob = printjob;
 
 	return printjob;
 }
 
-static rdpPrintJob* printer_ulteo_pdf_find_printjob(rdpPrinter* printer, uint32 id)
-{
-	rdpUlteoPdfPrinter* ulteo_pdf_printer = (rdpUlteoPdfPrinter*)printer;
+/**
+ * Return job by id
+ */
+static rdpPrintJob* printer_ulteo_pdf_find_printjob(rdpPrinter* rdp_printer, uint32 id) {
+	rdpUlteoPdfPrinter* printer = (rdpUlteoPdfPrinter*)rdp_printer;
 
-	if ((ulteo_pdf_printer->printjob == NULL) ||  (ulteo_pdf_printer->printjob->id != id))
+	if ((printer->printjob == NULL) ||  (printer->printjob->id != id))
 		return NULL;
 
-	return (rdpPrintJob*)ulteo_pdf_printer->printjob;
+	return (rdpPrintJob*)printer->printjob;
 }
 
-static void printer_ulteo_pdf_free_printer(rdpPrinter* printer)
-{
-	rdpUlteoPdfPrinter* ulteo_pdf_printer = (rdpUlteoPdfPrinter*)printer;
+/**
+ * Destructor : Unload printer
+ */
+static void printer_ulteo_pdf_free_printer(rdpPrinter* rdp_printer) {
+	rdpUlteoPdfPrinter* printer = (rdpUlteoPdfPrinter*)rdp_printer;
 
-	if (ulteo_pdf_printer->printjob)
-		ulteo_pdf_printer->printjob->Close((rdpPrintJob*)ulteo_pdf_printer->printjob);
-	xfree(printer->name);
+	/* Free job (if any) */
+	if (printer->printjob)
+		printer->printjob->Close((rdpPrintJob*)printer->printjob);
+
+	xfree(rdp_printer->name);
 	xfree(printer);
 }
 
-static rdpPrinter* printer_ulteo_pdf_new_printer(rdpUlteoPdfPrinterDriver* ulteo_pdf_driver, const char* name, boolean is_default)
-{
-	rdpUlteoPdfPrinter* ulteo_pdf_printer;
+/**
+ * Constructor : Load the printer
+ */
+static rdpPrinter* printer_ulteo_pdf_new_printer(rdpUlteoPdfPrinterDriver* ulteo_pdf_driver, const char* name, boolean is_default) {
+	rdpUlteoPdfPrinter* printer;
 
-	ulteo_pdf_printer = xnew(rdpUlteoPdfPrinter);
+	printer = xnew(rdpUlteoPdfPrinter);
 
-	ulteo_pdf_printer->printer.id = ulteo_pdf_driver->id_sequence++;
-	ulteo_pdf_printer->printer.name = xstrdup(name);
-	/* This is the PDF Ulteo driver. On printing, the printer transmits a PDF back to the client. */
-	ulteo_pdf_printer->printer.driver = "Ulteo TS Printer Driver";
-	ulteo_pdf_printer->printer.is_default = is_default;
+	/* Description */
+	printer->printer.id = ulteo_pdf_driver->id_sequence++;
+	printer->printer.name = xstrdup(name);
+	printer->printer.driver = "Ulteo TS Printer Driver";
+	printer->printer.is_default = is_default;
 
-	ulteo_pdf_printer->printer.CreatePrintJob = printer_ulteo_pdf_create_printjob;
-	ulteo_pdf_printer->printer.FindPrintJob = printer_ulteo_pdf_find_printjob;
-	ulteo_pdf_printer->printer.Free = printer_ulteo_pdf_free_printer;
+	/* Callbacks */
+	printer->printer.CreatePrintJob = printer_ulteo_pdf_create_printjob;
+	printer->printer.FindPrintJob = printer_ulteo_pdf_find_printjob;
+	printer->printer.Free = printer_ulteo_pdf_free_printer;
 
-	// spool is set later in extrainit()
-	ulteo_pdf_printer->spool_fifo = -1;
+	/* spool is set later in extrainit() */
+	printer->spool_fifo = -1;
 
-	return (rdpPrinter*)ulteo_pdf_printer;
+	return (rdpPrinter*)printer;
 }
 
-static rdpPrinter** printer_ulteo_pdf_enum_printers(rdpPrinterDriver* driver)
-{
+/**
+ * Enum installed printers
+ */
+static rdpPrinter** printer_ulteo_pdf_enum_printers(rdpPrinterDriver* driver) {
 	rdpPrinter** printers;
 	
 	printers = (rdpPrinter**)xzalloc(sizeof(rdpPrinter*) * 2);
-	printers[0] = printer_ulteo_pdf_new_printer((rdpUlteoPdfPrinterDriver*)driver,
-												"Ulteo OVD Printer",true);
+	printers[0] = printer_ulteo_pdf_new_printer((rdpUlteoPdfPrinterDriver*)driver, "Ulteo OVD Printer",true);
 	return printers;
 }
 
-static rdpPrinter* printer_ulteo_pdf_get_printer(rdpPrinterDriver* driver, const char* name)
-{
+/**
+ * Factory
+ */
+static rdpPrinter* printer_ulteo_pdf_get_printer(rdpPrinterDriver* driver, const char* name) {
 	rdpUlteoPdfPrinterDriver* ulteo_pdf_driver = (rdpUlteoPdfPrinterDriver*)driver;
 
 	return (rdpPrinter*)(printer_ulteo_pdf_new_printer(ulteo_pdf_driver, name, ulteo_pdf_driver->id_sequence == 1 ? true : false));
 }
 
+/**
+ * Stage 2 initializer
+ */
 static int printer_ulteo_pdf_extra_init(char** plugin_data, rdpPrinter* rdp_printer) {
 	rdpUlteoPdfPrinter* printer = (rdpUlteoPdfPrinter*)rdp_printer;
 
-	// Guacd stores the path of the spool here.
+	/* Get fifo path from vchannel load params */
 	char* fifo_path = plugin_data[3];
 
-    printer->spool_fifo = open(fifo_path, O_WRONLY);
-    if (printer->spool_fifo <= 0) {
-		printf("Cannot open FIFO %s\n", fifo_path);
-        perror("reason : ");
-        return -3;
-    }
+	/* Open the fifo */
+	printer->spool_fifo = open(fifo_path, O_WRONLY);
+	if (printer->spool_fifo <= 0) {
+		DEBUG_WARN("Ulteo printer : Can't open communication fifo %s", fifo_path);
+		perror("reason : ");
+		return -3;
+	}
 
+	/* Set the spool directory */
 	strcpy(printer->spool_dir, fifo_path);
-
-	// Truncate the path removing "/fifo" 
 	*(rindex(printer->spool_dir, '/')) = '\0';
-	DEBUG_WARN("SPool dir is %s", printer->spool_dir);
+	DEBUG_WARN("Ulteo printer : Set spool directory to %s", printer->spool_dir);
 
+	/* Can write in spool ? */
 	if (access(printer->spool_dir, W_OK) != 0) {
-		printf("Error , %s : cannot open to write PDF files", printer->spool_dir);
+		DEBUG_WARN("Ulteo printer : Can't open the spool directory (%s)", printer->spool_dir);
+		return -3;
 	}
 
 	return 0;
 }
 
-
-// Single-instance (singleton-style)
-// It's not a printer driver but a printer-manager driver.
-static rdpUlteoPdfPrinterDriver* ulteo_pdf_driver = NULL;
-
-rdpPrinterDriver* printer_ulteo_pdf_get_driver(void)
-{
-	if (ulteo_pdf_driver == NULL)
-	{
+/**
+ * Driver constructor (singleton style)
+ */
+rdpPrinterDriver* printer_ulteo_pdf_get_driver(void) {
+	if (ulteo_pdf_driver == NULL) {
 		ulteo_pdf_driver = xnew(rdpUlteoPdfPrinterDriver);
 
+		/* Callbacks */
 		ulteo_pdf_driver->driver.EnumPrinters = printer_ulteo_pdf_enum_printers;
 		ulteo_pdf_driver->driver.GetPrinter = printer_ulteo_pdf_get_printer;
 		ulteo_pdf_driver->driver.ExtraInit = printer_ulteo_pdf_extra_init;
 
 		ulteo_pdf_driver->id_sequence = 1;
-
 	}
 
 	return (rdpPrinterDriver*)ulteo_pdf_driver;
