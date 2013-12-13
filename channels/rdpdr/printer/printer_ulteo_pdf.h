@@ -23,10 +23,20 @@
 #ifndef __PRINTER_ULTEO_PDF_H
 #define __PRINTER_ULTEO_PDF_H
 
+#include <freerdp/freerdp.h>
 #include "printer_main.h"
 
+#define FREERDP_ULTEO_SPOOL_PATH "/var/spool/ulteo/pdf-printer"
 #define MAX_PATH_SIZE 300
 rdpPrinterDriver* printer_ulteo_pdf_get_driver(void);
+
+/* Dummy rdp_guac_client_data structure */
+/* Must be kept in sync with the libguac-client-rdp rdp_guac_client_data */
+typedef struct rdp_guac_client_data {
+    freerdp* rdp_inst;
+    rdpSettings* settings;
+    int printjob_notif_fifo;
+} rdp_guac_client_data;
 
 #endif
 
