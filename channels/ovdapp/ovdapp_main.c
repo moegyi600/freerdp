@@ -36,6 +36,12 @@ typedef struct ovdapp_plugin
 	rdpSvcPlugin plugin;
 } ovdappPlugin;
 
+typedef struct ovdapp_event
+{
+	unsigned int size;
+	char *data;
+} ovdappEvent;
+
 static void ovdapp_process_connect(rdpSvcPlugin* plugin)
 {
 	/* Vchannel connection callback */
@@ -53,30 +59,20 @@ static void ovdapp_process_receive(rdpSvcPlugin* plugin, STREAM* data_in)
 	*/
 
 	/* stream_get_size gives the data size in bytes */
-	int i;
 	int len = stream_get_size(data_in);
-	char *data = (char*) stream_get_data(data_in);
 	RDP_EVENT *event = malloc(sizeof(RDP_EVENT));
-
-	/*
-	printf("OvdApp input data(%d) : ", len);
-	for(i=0 ; i<len ; ++i) printf("0x%X ", data[i]);
-	printf("\n");
-	*/
+	ovdappEvent *ovdapp_ev = malloc(sizeof(ovdappEvent));
 
 	/* Create a new event and copy data from stream */
+	/* Be carefull ! There is no guarantee that the stream is null-terminated */
+	ovdapp_ev->size = len;
+	ovdapp_ev->data = malloc(len);
+	memcpy(ovdapp_ev->data, (const char*) stream_get_data(data_in), ovdapp_ev->size);
+
 	event->event_class = RDP_EVENT_CLASS_OVDAPP;
 	event->event_type = 0;
 	event->on_event_free_callback = NULL;
-	event->user_data = malloc((len*2)+1);
-
-	for(i=0 ; i<len ; ++i) {
-		snprintf(((char*)(event->user_data))+(2*i), 3, "%02x", data[i]);
-	}
-
-	((char*)(event->user_data))[len*2] = '\0';
-
-	/*printf("OvdApp input data(%d) : %s\n", strlen((char*)(event->user_data)), ((char*)(event->user_data)));*/
+	event->user_data = ovdapp_ev;
 
 	/* Send the event to the main program */
 	svc_plugin_send_event(plugin, event);
@@ -93,27 +89,20 @@ static void ovdapp_process_event(rdpSvcPlugin* plugin, RDP_EVENT* event)
 		 - Free event
 	*/
 
-	int i;
-	char buffer[3];
-	unsigned int tmp;
-	int len = strlen(event->user_data);
-	STREAM *stream = stream_new((len/2)+2);
+	ovdappEvent *ovdapp_ev = event->user_data;
+	unsigned int len = ovdapp_ev->size;
+	char *data = ovdapp_ev->data;
+	STREAM *stream = stream_new(len);
 
 	/* Copy event data to stream */
-	for(i=0 ; i<len ; i+=2) {
-		buffer[0] = ((char*)(event->user_data))[i];
-		buffer[1] = ((char*)(event->user_data))[i+1];
-		buffer[2] = '\0';
-
-		sscanf(buffer, "%x", &tmp);
-		stream_write_uint8(stream, tmp);
-	}
-	stream_write_uint8(stream, 0);
-
-	/*printf("OvdApp output data(%d) : %s\n", strlen((char*)(stream_get_data(stream))), ((char*)(stream_get_data(stream))));*/
+	stream_write(stream, data, len);
 
 	/* Send the stream to the server */
 	svc_plugin_send(plugin, stream);
+
+	free(ovdapp_ev->data);
+	free(event->user_data);
+	freerdp_event_free(event);
 }
 
 static void ovdapp_process_terminate(rdpSvcPlugin* plugin)
