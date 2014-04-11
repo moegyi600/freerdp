@@ -856,6 +856,7 @@ static const char* event_class_to_name_table[] =
 	"rail",     /* RDP_EVENT_CLASS_RAIL */
 	"seamrdp",  /* RDP_EVENT_CLASS_SEAMRDP */
 	"ovdapp",   /* RDP_EVENT_CLASS_OVDAPP */
+	"ukbrdr",   /* RDP_EVENT_CLASS_UKBRDR */
 	NULL
 };
 

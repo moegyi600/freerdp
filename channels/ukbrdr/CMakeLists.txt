@@ -17,13 +17,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_subdirectory(cliprdr)
-add_subdirectory(drdynvc)
-add_subdirectory(rdpdbg)
-add_subdirectory(rdpdr)
-add_subdirectory(rail)
-add_subdirectory(rdpsnd)
-add_subdirectory(seamrdp)
-add_subdirectory(ovdapp)
-add_subdirectory(ukbrdr)
+set(UKBRDR_SRCS
+	ukbrdr_main.c
+)
 
+add_library(ukbrdr ${UKBRDR_SRCS})
+set_target_properties(ukbrdr PROPERTIES PREFIX "")
+
+target_link_libraries(ukbrdr freerdp-utils)
+
+install(TARGETS ukbrdr DESTINATION ${FREERDP_PLUGIN_PATH})
